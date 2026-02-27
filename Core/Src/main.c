@@ -110,6 +110,7 @@ int main(void)
   HAL_Delay(500);
   // try to mount sd card and list files
   sd_ls();
+  sd_head("test.txt", 128);
 
   /* USER CODE END 2 */
 

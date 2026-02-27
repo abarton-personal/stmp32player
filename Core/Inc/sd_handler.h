@@ -37,7 +37,7 @@
 
 void sd_handler_init(UART_HandleTypeDef* rt);
 void sd_ls(void);
-
+void sd_head(const char* filename, int max_num_bytes);
 
 
 #ifdef __cplusplus
