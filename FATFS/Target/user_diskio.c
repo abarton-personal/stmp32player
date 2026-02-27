@@ -37,8 +37,6 @@
 #include "stm32l4xx_hal.h"
 #include "main.h"
 
-//extern SPI_HandleTypeDef hspi2;
-
 static volatile DSTATUS Stat = STA_NOINIT;
 static int SD_Type = 0;
 

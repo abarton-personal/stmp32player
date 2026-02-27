@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include <stdio.h>
+#include "sd_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,7 +57,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
-static void ls(void);
+
 
 /* USER CODE END PFP */
 
@@ -64,46 +65,7 @@ static void ls(void);
 /* USER CODE BEGIN 0 */
 /* USER CODE BEGIN 2 */
 
-// Mount filesystem and read all filenames in root directory.
-static void ls(void){
-	FATFS fs;
-	DIR dir;
-	FILINFO fno;
-	FRESULT res;
 
-	//mount
-	res = f_mount(&fs, "/", 1);
-	if (res != FR_OK) {
-		char msg[32];
-		snprintf(msg, sizeof(msg), "Mount failed: %d\r\n", res);
-		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-	} else {
-		// Open root directory
-		res = f_opendir(&dir, "/");
-		if (res == FR_OK) {
-			while (1) {
-				res = f_readdir(&dir, &fno);
-				// Empty name means end of directory
-				if (res != FR_OK || fno.fname[0] == 0) break;
-				// Skip hidden and system files if you want
-				if (fno.fattrib & (AM_HID | AM_SYS)) continue;
-
-				char msg[64];
-				snprintf(msg, sizeof(msg), "%s %s\r\n",
-					(fno.fattrib & AM_DIR) ? "[DIR] " : "[FILE]",
-					fno.fname);
-				HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-			}
-			f_closedir(&dir);
-		} else {
-			char msg[32];
-			snprintf(msg, sizeof(msg), "opendir failed: %d\r\n", res);
-			HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-		}
-
-		f_mount(NULL, "/", 1);
-	}
-}
 /* USER CODE END 2 */
 /* USER CODE END 0 */
 
@@ -140,11 +102,15 @@ int main(void)
   MX_FATFS_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
+
+  sd_handler_init(&huart2);
+
   uint8_t Test[] = "Lets mount this mf\r\n"; //Data to send
   HAL_UART_Transmit(&huart2,Test,sizeof(Test),10);// Sending in normal mode
   HAL_Delay(500);
   // try to mount sd card and list files
-  ls();
+  sd_ls();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
