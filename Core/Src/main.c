@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "sd_handler.h"
+#include "utils.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -102,16 +103,15 @@ int main(void)
   MX_FATFS_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
+  utils_init(&huart2);
+  sd_handler_init();
 
-  sd_handler_init(&huart2);
-
-  uint8_t Test[] = "Lets mount this mf\r\n"; //Data to send
-  HAL_UART_Transmit(&huart2,Test,sizeof(Test),10);// Sending in normal mode
-  HAL_Delay(500);
+  uart_printf("Lets mount some filesystem\r\n");
   // try to mount sd card and list files
   sd_ls();
   sd_head("test.txt", 128, false);
   sd_head("test.txt", 128, true);
+  sd_head("metal_2.wav", 512, true);
 
   /* USER CODE END 2 */
 

@@ -1,15 +1,16 @@
 /**
   ******************************************************************************
-  * @file           : sd_handler.h
+  * @file           : utils.h
   * @brief          : Header for sd_handler.c file.
-  *                   This file is a utility wrapper for access to the SD card
+  *                   This file contains generic macros and functions to help 
+  *                   simplify the code base
   * @author         : AB
   * @date           : Feb 2026
   ******************************************************************************
 */
 
-#ifndef SD_HANDLER_H
-#define SD_HANDLER_H
+#ifndef UTILS_H
+#define UTILS_H
 
 #ifdef __cplusplus
  extern "C" {
@@ -18,8 +19,7 @@
 /* ============================================================================
  * INCLUDES
  * ==========================================================================*/
-#include <stdbool.h>
-#include "fatfs.h"
+#include "stm32l4xx_hal.h"
 
 /* ============================================================================
  * PUBLIC MACROS & CONSTANTS
@@ -34,10 +34,8 @@
  /* ============================================================================
  * PUBLIC FUNCTION DECLARATIONS
  * ==========================================================================*/
-
-void sd_handler_init();
-void sd_ls(void);
-void sd_head(const char* filename, int max_num_bytes, bool hexdump);
+void utils_init(UART_HandleTypeDef *uart);
+void uart_printf(const char *fmt, ...);
 
 
 #ifdef __cplusplus
