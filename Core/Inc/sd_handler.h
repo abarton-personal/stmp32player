@@ -20,6 +20,7 @@
  * ==========================================================================*/
 #include "stm32l4xx_hal.h"
 #include "fatfs.h"
+#include <stdbool.h>
 
 /* ============================================================================
  * PUBLIC MACROS & CONSTANTS
@@ -37,7 +38,7 @@
 
 void sd_handler_init(UART_HandleTypeDef* rt);
 void sd_ls(void);
-void sd_head(const char* filename, int max_num_bytes);
+void sd_head(const char* filename, int max_num_bytes, bool hexdump);
 
 
 #ifdef __cplusplus

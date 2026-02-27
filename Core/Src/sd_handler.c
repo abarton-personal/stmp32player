@@ -11,7 +11,6 @@
 #include "sd_handler.h"
 #include <string.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 /* ============================================================================
  * PRIVATE MACROS & CONSTANTS
@@ -104,17 +103,18 @@ void sd_ls(void){
 }
 
 /**
- * @brief  Print the first N bytes of the given filename (if it exists)
+ * @brief  Open the given file (if it exists) in read only mode then
+ *         print the first N bytes
  * @return void
  */
-void sd_head(const char* filename, int max_num_bytes){
+void sd_head(const char* filename, int max_num_bytes, bool hexdump){
     
     FRESULT res;
     FIL fp;
     res = f_open(&fp, filename, FA_READ);
     if (res != FR_OK){
         char msg[32];
-        snprintf(msg, sizeof(msg), "could not open %s: %d\r\n", filename, res);
+        snprintf(msg, sizeof(msg), "Could not open %s: %d\r\n", filename, res);
         HAL_UART_Transmit(uart, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
         return;
     }
@@ -123,14 +123,33 @@ void sd_head(const char* filename, int max_num_bytes){
     res = f_read(&fp, buf, (max_num_bytes-1), &bytes_read);
     if (res != FR_OK){
         char msg[32];
-        snprintf(msg, sizeof(msg), "could not read %s: %d\r\n", filename, res);
+        snprintf(msg, sizeof(msg), "Could not read %s: %d\r\n", filename, res);
         HAL_UART_Transmit(uart, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
         return;
     }
     
-    HAL_UART_Transmit(uart, (uint8_t*)buf, bytes_read, HAL_MAX_DELAY);
-    
+    // print ascii characters or raw hex values depending on hexdump arg
+    if (hexdump){
+        int offset = 0;
+        while (offset < bytes_read){
+            int line_len = (bytes_read - offset) > 16 ? 16 : (bytes_read - offset);
+            char hex_line[48] = {0};
+            char ascii_line[17] = {0};
+            for (int i=0; i<line_len; i++){
+                uint8_t byte = buf[offset + i];
+                snprintf(hex_line + (i*3), sizeof(hex_line) - (i*3), "%02X ", byte);
+                ascii_line[i] = (byte >= 32 && byte <= 126) ? byte : '.';
+            }
+            char line_msg[192];
+            snprintf(line_msg, sizeof(line_msg), "%08X: %-48s %s\r\n", offset, hex_line, ascii_line);
+            HAL_UART_Transmit(uart, (uint8_t*)line_msg, strlen(line_msg), HAL_MAX_DELAY);
+            offset += line_len;
+        }
+    } else {
+        HAL_UART_Transmit(uart, (uint8_t*)buf, bytes_read, HAL_MAX_DELAY);
+    }
 }
+
 
 /* ============================================================================
  * PRIVATE FUNCTION DEFINITIONS
