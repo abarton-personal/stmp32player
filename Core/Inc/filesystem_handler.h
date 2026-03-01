@@ -40,7 +40,8 @@
 void filesystem_handler_init();
 void sd_ls(void);
 void sd_head(const char* filename, int max_num_bytes, bool hexdump);
-int get_wav_metadata(const char *filename, wav_header *wh);
+int get_wav_metadata(const char *filename, wav_metadata *wh);
+void dump_wav_metadata(wav_metadata *wh);
 
 #ifdef __cplusplus
 }

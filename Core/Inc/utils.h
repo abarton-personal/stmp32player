@@ -26,11 +26,13 @@
  * PUBLIC MACROS & CONSTANTS
  * ==========================================================================*/
 #define WAV_HEADER_SIZE 44
+#define MAX_FILENAME_SIZE 32
 
  /* ============================================================================
  * PUBLIC TYPES
  * ==========================================================================*/
-typedef struct wav_header {
+typedef struct wav_metadata {
+    char path[MAX_FILENAME_SIZE]; 
     uint32_t file_size;
     uint32_t fmt_data_length;
     uint16_t fmt_type;
@@ -40,7 +42,7 @@ typedef struct wav_header {
     uint16_t block_align;
     uint32_t bits_per_sample;
     uint32_t data_size;
-} wav_header;
+} wav_metadata;
 
  /* ============================================================================
  * PUBLIC FUNCTION DECLARATIONS

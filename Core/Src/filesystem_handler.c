@@ -31,7 +31,7 @@ static bool is_fs_mounted = false;
  /* ============================================================================
  * PRIVATE FUNCTION PROTOTYPES
  * ==========================================================================*/
-static void parse_wav_file(const uint8_t *buf, wav_header *wh);
+static void parse_wav_file(const uint8_t *buf, wav_metadata *wh, const char *filename);
 
  /* ============================================================================
  * PUBLIC FUNCTIONS
@@ -75,17 +75,20 @@ void sd_ls(void){
             if (fno.fattrib & (AM_HID | AM_SYS)) continue;
 
             uart_printf("%s %s\r\n",
-                (fno.fattrib & AM_DIR) ? "[DIR] " : "[FILE]", fno.fname);
+                (fno.fattrib & AM_DIR) ? " - dir - " : " - file - ", fno.fname);
         }
         f_closedir(&dir);
     } else {
-        uart_printf("opendir failed: %d\r\n", res);
+        uart_printf("[sd_ls] - ERROR: opendir failed: %d\r\n", res);
     }
 }
 
 /**
  * @brief  Open the given file (if it exists) in read only mode then
  *         print the first N bytes
+ * @param filename path+name of the file to open
+ * @param max_num_bytes how many bytes to read
+ * @param hexdump dump the raw hex values or not
  * @return void
  */
 void sd_head(const char* filename, int max_num_bytes, bool hexdump){
@@ -94,16 +97,24 @@ void sd_head(const char* filename, int max_num_bytes, bool hexdump){
     
     FRESULT res;
     FIL fp;
+    // open the file
     res = f_open(&fp, filename, FA_READ);
     if (res != FR_OK){
-        uart_printf("Could not open %s: %d\r\n", filename, res);
+        uart_printf("[sd_head] - ERROR: failed to open %s: %d\r\n", filename, res);
         return;
     }
+    // read the bytes into buf
     char buf[max_num_bytes];
     UINT bytes_read;
     res = f_read(&fp, buf, (max_num_bytes-1), &bytes_read);
     if (res != FR_OK){
-        uart_printf("Could not read %s: %d\r\n", filename, res);
+        uart_printf("[sd_head] - ERROR: failed to read %s: %d\r\n", filename, res);
+        return;
+    }
+    // close the file
+    res = f_close(&fp);
+    if (res != FR_OK){
+        uart_printf("[sd_head] - ERROR: failed to close %s: %d\r\n", filename, res);
         return;
     }
     
@@ -134,29 +145,53 @@ void sd_head(const char* filename, int max_num_bytes, bool hexdump){
  *         then parse the metadata
  *         TODO: verify that it's really a wav file
  * @param  filename path and name of the wav file
- * @param  wh wav_header struct containing the file's metadata
+ * @param  wh wav_metadata struct containing the file's metadata
  * @return 0 on success, 1 if failed to parse
  */
-int get_wav_metadata(const char *filename, wav_header *wh){
+int get_wav_metadata(const char *filename, wav_metadata *wh){
     if (!is_fs_mounted) return 1;
     
     FRESULT res;
     FIL fp;
     res = f_open(&fp, filename, FA_READ);
     if (res != FR_OK){
-        uart_printf("[get_wav_metadata] - ERROR: Could not open %s: %d\r\n", filename, res);
+        uart_printf("[get_wav_metadata] - ERROR: failed to open %s: %d\r\n", filename, res);
         return 1;
     }
     uint8_t buf[WAV_HEADER_SIZE];
     UINT bytes_read;
     res = f_read(&fp, buf, WAV_HEADER_SIZE, &bytes_read);
     if (res != FR_OK){
-        uart_printf("[get_wav_metadata] - ERROR: Could not read %s: %d\r\n", filename, res);
+        uart_printf("[get_wav_metadata] - ERROR: failed to read %s: %d\r\n", filename, res);
         return 1;
     }
-
-    parse_wav_file(buf, wh);
+    // close the file
+    res = f_close(&fp);
+    if (res != FR_OK){
+        uart_printf("[get_wav_metadata] - ERROR: failed to close %s: %d\r\n", filename, res);
+        return 1;
+    }
+    // fill the wav_metadata struct with formatted metadata
+    parse_wav_file(buf, wh, filename);
     return 0;
+}
+
+ /**
+ * @brief  Pretty print the wav_metadata struct
+ * @param  wh pointer to struct to print
+ * @return void
+ */
+void dump_wav_metadata(wav_metadata *wh){
+    uart_printf("%s:\r\n", wh->path);
+    uart_printf(" - file_size: %d\r\n", wh->file_size);
+    uart_printf(" - fmt_data_length: %d\r\n", wh->fmt_data_length);
+    uart_printf(" - fmt_type: %d\r\n", wh->fmt_type);
+    uart_printf(" - channels: %d\r\n", wh->channels);
+    uart_printf(" - sample_rate: %d\r\n", wh->sample_rate);
+    uart_printf(" - bytes_per_s: %d\r\n", wh->bytes_per_s);
+    uart_printf(" - block_align: %d\r\n", wh->block_align);
+    uart_printf(" - bits_per_sample: %d\r\n", wh->bits_per_sample);
+    uart_printf(" - data_size: %d\r\n", wh->data_size);
 }
 
 
@@ -165,13 +200,15 @@ int get_wav_metadata(const char *filename, wav_header *wh){
  * ==========================================================================*/
 
  /**
- * @brief  Parse the header of a wav file and pack a 
- *         wav_header struct
- * @param  buf - buffer containing at least the first 44 raw bytes of the file
- * @param  wh - pointer to wav_header struct to store the metadata
+ * @brief  Parse the header of a wav file, format the metadata and pack into a 
+ *         wav_metadata struct
+ * @param  buf buffer containing at least the first 44 raw bytes of the file
+ * @param  wh pointer to wav_metadata struct to store the metadata
+ * @param  filename path or name of the file
  * @return void
  */
-static void parse_wav_file(const uint8_t *buf, wav_header *wh){
+static void parse_wav_file(const uint8_t *buf, wav_metadata *wh, const char *filename){
+    strncpy(wh->path, filename, MAX_FILENAME_SIZE);
     wh->file_size = combine_32(buf, 4);
     wh->fmt_data_length = combine_32(buf, 16);
     wh->fmt_type = combine_16(buf, 20);
@@ -181,14 +218,4 @@ static void parse_wav_file(const uint8_t *buf, wav_header *wh){
     wh->block_align = combine_16(buf, 32);
     wh->bits_per_sample = combine_16(buf, 34);
     wh->data_size = combine_32(buf, 40);
-    uart_printf("WAV header:\n");
-    uart_printf(" - file_size: %d\n", wh->file_size);
-    uart_printf(" - fmt_data_length: %d\n", wh->fmt_data_length);
-    uart_printf(" - fmt_type: %d\n", wh->fmt_type);
-    uart_printf(" - channels: %d\n", wh->channels);
-    uart_printf(" - sample_rate: %d\n", wh->sample_rate);
-    uart_printf(" - bytes_per_s: %d\n", wh->bytes_per_s);
-    uart_printf(" - block_align: %d\n", wh->block_align);
-    uart_printf(" - bits_per_sample: %d\n", wh->bits_per_sample);
-    uart_printf(" - data_size: %d\n", wh->data_size);
 }

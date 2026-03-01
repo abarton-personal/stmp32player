@@ -112,8 +112,11 @@ int main(void)
   sd_head("test.txt", 128, false);
   sd_head("test.txt", 128, true);
   sd_head("metal_2.wav", 512, true);
-  wav_header jazz_4_metadata;
+  wav_metadata jazz_4_metadata;
   int read_success = get_wav_metadata("jazz_4.wav", &jazz_4_metadata);
+  if (read_success == 0){
+    dump_wav_metadata(&jazz_4_metadata);
+  }
 
   /* USER CODE END 2 */
 
