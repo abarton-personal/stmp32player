@@ -24,8 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include <stdio.h>
-#include "sd_handler.h"
 #include "utils.h"
+#include "filesystem_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -104,7 +104,7 @@ int main(void)
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
   utils_init(&huart2);
-  sd_handler_init();
+  filesystem_handler_init();
 
   uart_printf("Lets mount some filesystem\r\n");
   // try to mount sd card and list files
@@ -112,6 +112,8 @@ int main(void)
   sd_head("test.txt", 128, false);
   sd_head("test.txt", 128, true);
   sd_head("metal_2.wav", 512, true);
+  wav_header jazz_4_metadata;
+  int read_success = get_wav_metadata("jazz_4.wav", &jazz_4_metadata);
 
   /* USER CODE END 2 */
 

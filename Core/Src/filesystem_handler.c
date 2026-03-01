@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
-  * @file           : sd_handler.c
-  * @brief          : see sd_handler.h for description
+  * @file           : filesystem_handler.c
+  * @brief          : see filesystem_handler.h for description
   ******************************************************************************
 */
 
@@ -10,8 +10,7 @@
  * ==========================================================================*/
 #include <string.h>
 #include <stdio.h>
-#include "sd_handler.h"
-#include "utils.h"
+#include "filesystem_handler.h"
 
 /* ============================================================================
  * PRIVATE MACROS & CONSTANTS
@@ -32,7 +31,7 @@ static bool is_fs_mounted = false;
  /* ============================================================================
  * PRIVATE FUNCTION PROTOTYPES
  * ==========================================================================*/
-
+static void parse_wav_file(const uint8_t *buf, wav_header *wh);
 
  /* ============================================================================
  * PUBLIC FUNCTIONS
@@ -41,7 +40,7 @@ static bool is_fs_mounted = false;
  * @brief  Initialize variables used in the sd_hander module
  * @return 0 on success, 1 on failure
  */
-void sd_handler_init(){
+void filesystem_handler_init(){
     // mount the filesystem
     FRESULT res;
     res = f_mount(&fs, ROOT_DIR, 1);
@@ -130,7 +129,66 @@ void sd_head(const char* filename, int max_num_bytes, bool hexdump){
     }
 }
 
+/**
+ * @brief  Open the given file (if it exists) in read only mode,
+ *         then parse the metadata
+ *         TODO: verify that it's really a wav file
+ * @param  filename path and name of the wav file
+ * @param  wh wav_header struct containing the file's metadata
+ * @return 0 on success, 1 if failed to parse
+ */
+int get_wav_metadata(const char *filename, wav_header *wh){
+    if (!is_fs_mounted) return 1;
+    
+    FRESULT res;
+    FIL fp;
+    res = f_open(&fp, filename, FA_READ);
+    if (res != FR_OK){
+        uart_printf("[get_wav_metadata] - ERROR: Could not open %s: %d\r\n", filename, res);
+        return 1;
+    }
+    uint8_t buf[WAV_HEADER_SIZE];
+    UINT bytes_read;
+    res = f_read(&fp, buf, WAV_HEADER_SIZE, &bytes_read);
+    if (res != FR_OK){
+        uart_printf("[get_wav_metadata] - ERROR: Could not read %s: %d\r\n", filename, res);
+        return 1;
+    }
+
+    parse_wav_file(buf, wh);
+    return 0;
+}
+
 
 /* ============================================================================
  * PRIVATE FUNCTION DEFINITIONS
  * ==========================================================================*/
+
+ /**
+ * @brief  Parse the header of a wav file and pack a 
+ *         wav_header struct
+ * @param  buf - buffer containing at least the first 44 raw bytes of the file
+ * @param  wh - pointer to wav_header struct to store the metadata
+ * @return void
+ */
+static void parse_wav_file(const uint8_t *buf, wav_header *wh){
+    wh->file_size = combine_32(buf, 4);
+    wh->fmt_data_length = combine_32(buf, 16);
+    wh->fmt_type = combine_16(buf, 20);
+    wh->channels = combine_16(buf, 22);
+    wh->sample_rate = combine_32(buf, 24);
+    wh->bytes_per_s = combine_32(buf, 28);
+    wh->block_align = combine_16(buf, 32);
+    wh->bits_per_sample = combine_16(buf, 34);
+    wh->data_size = combine_32(buf, 40);
+    uart_printf("WAV header:\n");
+    uart_printf(" - file_size: %d\n", wh->file_size);
+    uart_printf(" - fmt_data_length: %d\n", wh->fmt_data_length);
+    uart_printf(" - fmt_type: %d\n", wh->fmt_type);
+    uart_printf(" - channels: %d\n", wh->channels);
+    uart_printf(" - sample_rate: %d\n", wh->sample_rate);
+    uart_printf(" - bytes_per_s: %d\n", wh->bytes_per_s);
+    uart_printf(" - block_align: %d\n", wh->block_align);
+    uart_printf(" - bits_per_sample: %d\n", wh->bits_per_sample);
+    uart_printf(" - data_size: %d\n", wh->data_size);
+}
